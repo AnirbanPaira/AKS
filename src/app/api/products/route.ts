@@ -19,6 +19,7 @@ export async function POST(req: Request) {
       productName: FormDataEntryValue | null;
       shortDescription: FormDataEntryValue | null;
       features: FormDataEntryValue | null;
+      isActive: boolean;
       descriptions: { title: FormDataEntryValue | null; heading: FormDataEntryValue | null; desc: FormDataEntryValue | null }[];
       pdfs: { heading: FormDataEntryValue | null; file: string | null }[];
       productImage?: string;
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
       productName: formData.get('productName'),
       shortDescription: formData.get('shortDescription'),
       features: formData.get('features'),
+      isActive: formData.get('isActive') === 'true',
       descriptions: [],
       pdfs: []
     };
@@ -143,28 +145,145 @@ export async function PUT(req: Request) {
     await dbConnect();
     const id = new URL(req.url).searchParams.get("id");
     
-    // Handle FormData for updates too
+    // Handle FormData for updates
     const formData = await req.formData();
+    
     interface ProductUpdateData {
-      category?: FormDataEntryValue | null;
-      subCategory?: FormDataEntryValue | null;
-      productName?: FormDataEntryValue | null;
-      shortDescription?: FormDataEntryValue | null;
-      features?: FormDataEntryValue | null;
+      category?: FormDataEntryValue | null | string;
+      subCategory?: FormDataEntryValue | null | string;
+      productName?: FormDataEntryValue | null | string;
+      shortDescription?: FormDataEntryValue | null | string;
+      features?: FormDataEntryValue | null | string;
+      isActive?: boolean;
+      descriptions?: { title: FormDataEntryValue | null; heading: FormDataEntryValue | null; desc: FormDataEntryValue | null }[] | null;
+      pdfs?: { heading: FormDataEntryValue | null; file?: string | null }[] | null;
+      productImage?: string;
     }
 
     const productData: ProductUpdateData = {};
     
-    // Process basic fields
-    const fields = ['category', 'subCategory', 'productName', 'shortDescription', 'features'];
-    fields.forEach(field => {
-      if (formData.has(field)) {
-        productData[field as keyof ProductUpdateData] = formData.get(field);
-      }
-    });
+    // Explicitly handle isActive
+    const isActiveValue = formData.get('isActive');
+    productData.isActive = isActiveValue === 'true';
+
+    // Process basic fields excluding isActive
+    const categoryValue = formData.get('category');
+    if (categoryValue !== null) {
+      productData.category = categoryValue as string;
+    }
+
+    const subCategoryValue = formData.get('subCategory');
+    if (subCategoryValue !== null) {
+      productData.subCategory = subCategoryValue as string;
+    }
+
+    const productNameValue = formData.get('productName');
+    if (productNameValue !== null) {
+      productData.productName = productNameValue as string;
+    }
+
+    const shortDescriptionValue = formData.get('shortDescription');
+    if (shortDescriptionValue !== null) {
+      productData.shortDescription = shortDescriptionValue as string;
+    }
+
+    const featuresValue = formData.get('features');
+    if (featuresValue !== null) {
+      productData.features = featuresValue as string;
+    }
     
-    // Process descriptions and PDFs similar to POST method if needed
-    // ... (similar implementation as POST)
+    // Handle product image upload for updates
+    const productImage = formData.get('productImage') as File;
+    if (productImage && productImage.size > 0) {
+      const uploadDir = join(process.cwd(), 'public/uploads/products');
+      
+      // Ensure upload directory exists
+      try {
+        await mkdir(uploadDir, { recursive: true });
+      } catch {
+        console.log("Directory already exists or cannot be created");
+      }
+      
+      // Generate unique filename
+      const fileName = `${Date.now()}-${productImage.name.replace(/\s+/g, '-')}`;
+      const filePath = join(uploadDir, fileName);
+      
+      // Write file to disk
+      const imageBuffer = await productImage.arrayBuffer();
+      await writeFile(filePath, Buffer.from(imageBuffer));
+      
+      // Store relative path in database
+      productData.productImage = `/uploads/products/${fileName}`;
+    }
+    
+    // Process descriptions for update
+    const descriptions: { title: FormDataEntryValue | null; heading: FormDataEntryValue | null; desc: FormDataEntryValue | null }[] = [];
+    let index = 0;
+    while (formData.has(`descriptions[${index}][title]`) || 
+           formData.has(`descriptions[${index}][heading]`) || 
+           formData.has(`descriptions[${index}][desc]`)) {
+      
+      descriptions.push({
+        title: formData.get(`descriptions[${index}][title]`),
+        heading: formData.get(`descriptions[${index}][heading]`),
+        desc: formData.get(`descriptions[${index}][desc]`)
+      });
+      
+      index++;
+    }
+    
+    if (descriptions.length > 0) {
+      productData.descriptions = descriptions;
+    }
+    
+    // Process PDF uploads for update
+    const pdfs: { heading: FormDataEntryValue | null; file?: string | null }[] = [];
+    index = 0;
+    while (formData.has(`pdfs[${index}][heading]`)) {
+      const pdfFile = formData.get(`pdfs[${index}][file]`) as File;
+      const pdfHeading = formData.get(`pdfs[${index}][heading]`);
+      const existingFileUrl = formData.get(`pdfs[${index}][fileUrl]`);
+      
+      const pdfEntry: { heading: FormDataEntryValue | null; file?: string | null } = {
+        heading: pdfHeading
+      };
+      
+      // If a new file is uploaded, process it
+      if (pdfFile && pdfFile.size > 0) {
+        const uploadDir = join(process.cwd(), 'public/uploads/pdfs');
+        
+        // Ensure upload directory exists
+        try {
+          await mkdir(uploadDir, { recursive: true });
+        } catch {
+          console.log("Directory already exists or cannot be created");
+        }
+        
+        // Generate unique filename
+        const fileName = `${Date.now()}-${pdfFile.name.replace(/\s+/g, '-')}`;
+        const filePath = join(uploadDir, fileName);
+        
+        // Write file to disk
+        const pdfBuffer = await pdfFile.arrayBuffer();
+        await writeFile(filePath, Buffer.from(pdfBuffer));
+        
+        // Store relative path in database
+        pdfEntry.file = `/uploads/pdfs/${fileName}`;
+      } 
+      // If no new file but has existing file URL, keep the existing one
+      else if (existingFileUrl) {
+        pdfEntry.file = existingFileUrl as string;
+      }
+      
+      pdfs.push(pdfEntry);
+      index++;
+    }
+    
+    if (pdfs.length > 0) {
+      productData.pdfs = pdfs;
+    }
+    
+    console.log("Product update data:", productData);
     
     const product = await Product.findByIdAndUpdate(id, productData, { new: true });
     if (!product) {
@@ -173,7 +292,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ message: "Product updated", product }, { status: 200 });
   } catch (error) {
     console.error("Error updating product:", error);
-    return NextResponse.json({ message: "Error updating product", error }, { status: 500 });
+    return NextResponse.json({ message: "Error updating product", error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
