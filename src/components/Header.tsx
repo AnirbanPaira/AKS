@@ -18,9 +18,9 @@ export default function Header() {
 
       if (res.ok) {
         console.log('Logout successful');
-        setToken(null); // Clear token from context and localStorage - let context handle local storage
-        router.replace('/'); // Use replace instead of push
-        router.refresh(); // Force re-render to update header text
+        setToken(null);
+        router.replace('/');
+        router.refresh();
       } else {
         console.error('Logout failed');
       }
@@ -30,19 +30,34 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gray-800 text-white p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="text-xl font-bold">Admin Panel</Link>
-        <nav>
-          {token ? (
+    <header className="bg-indigo-900 text-white p-4 shadow-md">
+      <div className="container mx-auto flex items-center "
+      style={{
+        display:"flex",
+        justifyContent:"space-around",
+        flexDirection:"row",
+      }}
+      >
+        {/* Logo and Company Name on the Left */}
+        <div className="flex items-center mr-auto">
+          <img src="/images/logo.png" alt="Logo" className="h-8" />
+        </div>
+        
+        {/* Admin Panel and Auth Links on the Right */}
+        <div className="flex items-center space-x-4 ml-auto">
+          {token && (
             <>
               <Link href="/change-password" className="ml-4">Change Password</Link>
               <button onClick={handleLogout} className="ml-4">Logout</button>
             </>
-          ) : (
-            <></>
           )}
-        </nav>
+          <Link href="/" className="text-xl font-bold text-blue-300" style={{
+            fontSize:"1.5rem",
+            color:'blue',
+            fontWeight:"bold",
+            textDecoration:"none",
+          }}>Admin Panel</Link>
+        </div>
       </div>
     </header>
   );
