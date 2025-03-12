@@ -36,7 +36,7 @@ interface Pdf {
 interface Product {
   _id: string;
   category: string | Category;
-  subCategory: string | SubCategory;
+  subCategory: string[] | SubCategory[]; // Changed to array
   productName: string;
   productImage: string;
   shortDescription: string;
@@ -58,7 +58,7 @@ const AddProductContent = () => {
   // Form state
   const [formData, setFormData] = useState({
     categoryId: '',
-    subCategoryId: '',
+    subCategoryIds: [] as string[], // Changed to array
     productName: '',
     shortDescription: '',
     features: '',
@@ -72,7 +72,7 @@ const AddProductContent = () => {
   const resetForm = () => {
     setFormData({
       categoryId: '',
-      subCategoryId: '',
+      subCategoryIds: [], // Reset as empty array
       productName: '',
       shortDescription: '',
       features: '',
@@ -95,6 +95,14 @@ const AddProductContent = () => {
     event.preventDefault();
     const formEl = event.target as HTMLFormElement;
     const formDataObj = new FormData(formEl);
+    
+    // Remove the default subCategory field that the form would create
+    formDataObj.delete('subCategory');
+    
+    // Add each selected subcategory as a separate entry
+    formData.subCategoryIds.forEach((subCatId, index) => {
+      formDataObj.append(`subCategories[${index}]`, subCatId);
+    });
     
     // Handle descriptions
     descriptions.forEach((desc, index) => {
@@ -194,14 +202,27 @@ const AddProductContent = () => {
     // Set editing ID
     setEditingProductId(productId);
     
+    // Handle subcategory array for edit
+    let subCategoryIds: string[] = [];
+    
+    if (Array.isArray(productToEdit.subCategory)) {
+      subCategoryIds = productToEdit.subCategory.map(sc => 
+        typeof sc === 'string' ? sc : sc._id
+      );
+    } else if (productToEdit.subCategory) {
+      // For backward compatibility with existing data
+      const scId = typeof productToEdit.subCategory === 'string' 
+        ? productToEdit.subCategory 
+        : (productToEdit.subCategory as SubCategory)._id;
+      subCategoryIds = [scId];
+    }
+    
     // Populate form with product data
     setFormData({
       categoryId: typeof productToEdit.category === 'string' ? 
         productToEdit.category : 
         productToEdit.category._id,
-      subCategoryId: typeof productToEdit.subCategory === 'string' ? 
-        productToEdit.subCategory : 
-        productToEdit.subCategory._id,
+      subCategoryIds: subCategoryIds,
       productName: productToEdit.productName,
       shortDescription: productToEdit.shortDescription,
       features: productToEdit.features || '',
@@ -308,16 +329,36 @@ const AddProductContent = () => {
     return category ? category.categoryName : 'N/A';
   };
 
-  const getSubCategoryNameById = (subCategoryId: string | { _id: string; subCategoryName: string } | undefined) => {
-    if (!subCategoryId) return 'N/A';
-
-    if (typeof subCategoryId === 'object' && subCategoryId.subCategoryName) {
-      return subCategoryId.subCategoryName;
+  // Updated to handle array of subcategories
+  const getSubCategoryNames = (subCategories: string[] | SubCategory[] | string | { _id: string; subCategoryName: string }) => {
+    if (!subCategories) return 'N/A';
+    
+    // Handle single subcategory case (for backward compatibility)
+    if (!Array.isArray(subCategories)) {
+      if (typeof subCategories === 'object' && subCategories.subCategoryName) {
+        return subCategories.subCategoryName;
+      }
+      
+      const subCategoryIdStr = typeof subCategories === 'string' ? subCategories : subCategories._id;
+      const subCategory = Array.isArray(subCategories) ? subCategories.find(subCat => subCat._id === subCategoryIdStr) : null;
+      return typeof subCategory !== 'string' && subCategory ? subCategory.subCategoryName : 'N/A';
     }
-
-    const subCategoryIdStr = typeof subCategoryId === 'string' ? subCategoryId : subCategoryId._id;
-    const subCategory = subCategories.find(subCat => subCat._id === subCategoryIdStr);
-    return subCategory ? subCategory.subCategoryName : 'N/A';
+    
+    // Handle array of subcategories
+    return subCategories.map(sc => {
+      if (typeof sc === 'object' && sc.subCategoryName) {
+        return sc.subCategoryName;
+      }
+      
+      const subCategory = subCategories.find(subCat => typeof subCat !== 'string' && subCat._id === sc);
+      return typeof subCategory !== 'string' && subCategory ? subCategory.subCategoryName : 'N/A';
+    }).join(', ');
+  };
+  
+  // Handle multi-select change for subcategories
+  const handleSubCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
+    setFormData({...formData, subCategoryIds: selectedOptions});
   };
 
   return (
@@ -360,16 +401,16 @@ const AddProductContent = () => {
             </div>
             
             <div className={styles.inputGroup}>
-              <label className={styles.inputLabel} htmlFor="subCategory">Sub Category</label>
+              <label className={styles.inputLabel} htmlFor="subCategory">Sub Category (Multiple Selection)</label>
               <select 
                 id="subCategory" 
                 name="subCategory" 
                 required
                 className={styles.select}
-                value={formData.subCategoryId}
-                onChange={(e) => setFormData({...formData, subCategoryId: e.target.value})}
+                value={formData.subCategoryIds}
+                onChange={handleSubCategoryChange}
+                multiple
               >
-                <option value="">Select Sub Category</option>
                 {subCategories && subCategories.length > 0 ? (
                   subCategories.map((subCategory) => (
                     <option key={subCategory._id} value={subCategory._id}>
@@ -380,6 +421,9 @@ const AddProductContent = () => {
                   <option disabled>No subcategories available</option>
                 )}
               </select>
+              <p className={styles.helperText}>
+                Hold Ctrl (or Cmd on Mac) to select multiple items
+              </p>
             </div>
           </div>
           
@@ -609,7 +653,7 @@ const AddProductContent = () => {
             <tr>
               <th>Sr. No</th>
               <th>Category</th>
-              <th>Sub Category</th>
+              <th>Sub Categories</th>
               <th>Product Name</th>
               <th>Short Description</th>
               <th>Descriptions</th>
@@ -623,7 +667,7 @@ const AddProductContent = () => {
                 <tr key={product._id}>
                   <td>{index + 1}</td>
                   <td>{getCategoryNameById(product.category)}</td>
-                  <td>{getSubCategoryNameById(product.subCategory)}</td>
+                  <td>{getSubCategoryNames(product.subCategory)}</td>
                   <td>{product.productName}</td>
                   <td>{product.shortDescription}</td>
                   <td>

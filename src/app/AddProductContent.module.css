@@ -52,6 +52,24 @@
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   
+  .select {
+    width: 100%;
+    padding: 10px 16px; /* Increased padding for better visual appearance */
+    border: 1px solid #d1d1d1;
+    border-radius: 8px;
+    font-size: 15px;
+    color: #333;
+    background-color: white; /* Ensure white background */
+    appearance: none; /* Remove default appearance */
+    -webkit-appearance: none; /* For Safari */
+    -moz-appearance: none; /* For Firefox */
+    background-image: url('data:image/svg+xml;utf8,<svg fill="currentColor" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+    background-repeat: no-repeat;
+    background-position-x: 100%;
+    background-position-y: 8px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  
   .input, .select, .fileInput {
     height: 46px;
   }

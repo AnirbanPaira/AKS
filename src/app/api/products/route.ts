@@ -4,6 +4,7 @@ import Product from '../../../../models/Product';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { mkdir } from 'fs/promises';
+import mongoose from 'mongoose';
 
 export async function POST(req: Request) {
   try {
@@ -14,27 +15,41 @@ export async function POST(req: Request) {
     
     // Extract basic fields
     interface ProductData {
-      category: FormDataEntryValue | null;
-      subCategory: FormDataEntryValue | null;
-      productName: FormDataEntryValue | null;
-      shortDescription: FormDataEntryValue | null;
-      features: FormDataEntryValue | null;
+      category: string | null;
+      subCategory:  mongoose.Schema.Types.ObjectId[];
+      productName: string | null;
+      shortDescription: string | null;
+      features: string | null;
       isActive: boolean;
-      descriptions: { title: FormDataEntryValue | null; heading: FormDataEntryValue | null; desc: FormDataEntryValue | null }[];
-      pdfs: { heading: FormDataEntryValue | null; file: string | null }[];
+      descriptions: { title: string | null; heading: string | null; desc: string | null }[];
+      pdfs: { heading: string | null; file: string | null }[];
       productImage?: string;
     }
 
     const productData: ProductData = {
-      category: formData.get('category'),
-      subCategory: formData.get('subCategory'),
-      productName: formData.get('productName'),
-      shortDescription: formData.get('shortDescription'),
-      features: formData.get('features'),
-      isActive: formData.get('isActive') === 'true',
+      category: formData.get('category')?.toString() || null,
+      subCategory: [], // Initialize empty array for ObjectIds
+      productName: formData.get('productName')?.toString() || null,
+      shortDescription: formData.get('shortDescription')?.toString() || null,
+      features: formData.get('features')?.toString() || null,
+      isActive: formData.get('status') === 'true' || formData.get('status') === 'on', // Handle checkbox value
       descriptions: [],
       pdfs: []
     };
+
+    // Process subCategories (multiple selection)
+    productData.subCategory = []; // Initialize as empty array
+    
+    // Iterate through all form keys to find subcategory entries
+    for (const key of formData.keys()) {
+      if (key.startsWith('subCategories')) {
+        const value = formData.get(key)?.toString();
+        if (value) {
+          // Convert string ID to ObjectId using explicit type casting
+          productData.subCategory.push(value as unknown as mongoose.Schema.Types.ObjectId);
+        }
+      }
+    }
 
     // Handle product image upload
     const productImage = formData.get('productImage') as File;
@@ -67,9 +82,9 @@ export async function POST(req: Request) {
            formData.has(`descriptions[${index}][desc]`)) {
       
       productData.descriptions.push({
-        title: formData.get(`descriptions[${index}][title]`),
-        heading: formData.get(`descriptions[${index}][heading]`),
-        desc: formData.get(`descriptions[${index}][desc]`)
+        title: formData.get(`descriptions[${index}][title]`)?.toString() || null,
+        heading: formData.get(`descriptions[${index}][heading]`)?.toString() || null,
+        desc: formData.get(`descriptions[${index}][desc]`)?.toString() || null
       });
       
       index++;
@@ -104,7 +119,7 @@ export async function POST(req: Request) {
       }
       
       productData.pdfs.push({
-        heading: formData.get(`pdfs[${index}][heading]`),
+        heading: formData.get(`pdfs[${index}][heading]`)?.toString() || null,
         file: pdfPath
       });
       
@@ -113,7 +128,7 @@ export async function POST(req: Request) {
 
     console.log("Product data to be saved:", productData);
     
-    // Create product in database
+    // Create product in database with the properly formatted data
     const product = await Product.create(productData);
     
     return NextResponse.json({ message: "Product Created", product }, { status: 201 });
@@ -129,17 +144,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
-  try {
-    await dbConnect();
-    const products = await Product.find().populate('category').populate('subCategory');
-    return NextResponse.json({ products });
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return NextResponse.json({ message: "Error fetching products", error }, { status: 500 });
-  }
-}
-
+// Also update the PUT method to handle the same conversion
 export async function PUT(req: Request) {
   try {
     await dbConnect();
@@ -149,47 +154,57 @@ export async function PUT(req: Request) {
     const formData = await req.formData();
     
     interface ProductUpdateData {
-      category?: FormDataEntryValue | null | string;
-      subCategory?: FormDataEntryValue | null | string;
-      productName?: FormDataEntryValue | null | string;
-      shortDescription?: FormDataEntryValue | null | string;
-      features?: FormDataEntryValue | null | string;
+      category?: string;
+      subCategory?: string[]; // Store as string IDs
+      productName?: string;
+      shortDescription?: string;
+      features?: string;
       isActive?: boolean;
-      descriptions?: { title: FormDataEntryValue | null; heading: FormDataEntryValue | null; desc: FormDataEntryValue | null }[] | null;
-      pdfs?: { heading: FormDataEntryValue | null; file?: string | null }[] | null;
+      descriptions?: { title: string | null; heading: string | null; desc: string | null }[] | null;
+      pdfs?: { heading: string | null; file?: string | null }[] | null;
       productImage?: string;
     }
 
     const productData: ProductUpdateData = {};
     
-    // Explicitly handle isActive
-    const isActiveValue = formData.get('isActive');
-    productData.isActive = isActiveValue === 'true';
+    // Explicitly handle isActive/status
+    const statusValue = formData.get('status');
+    productData.isActive = statusValue === 'true' || statusValue === 'on';
 
     // Process basic fields excluding isActive
     const categoryValue = formData.get('category');
     if (categoryValue !== null) {
-      productData.category = categoryValue as string;
+      productData.category = categoryValue?.toString();
     }
 
-    const subCategoryValue = formData.get('subCategory');
-    if (subCategoryValue !== null) {
-      productData.subCategory = subCategoryValue as string;
+    // Process subCategories (multiple selection)
+    const subCategoryKeys = Array.from(formData.keys()).filter(key => key.startsWith('subCategories['));
+    
+    if (subCategoryKeys.length > 0) {
+      productData.subCategory = [];
+      
+      for (const key of subCategoryKeys) {
+        const value = formData.get(key)?.toString();
+        if (value) {
+          // Store as string ID
+          productData.subCategory.push(value);
+        }
+      }
     }
 
     const productNameValue = formData.get('productName');
     if (productNameValue !== null) {
-      productData.productName = productNameValue as string;
+      productData.productName = productNameValue?.toString();
     }
 
     const shortDescriptionValue = formData.get('shortDescription');
     if (shortDescriptionValue !== null) {
-      productData.shortDescription = shortDescriptionValue as string;
+      productData.shortDescription = shortDescriptionValue?.toString();
     }
 
     const featuresValue = formData.get('features');
     if (featuresValue !== null) {
-      productData.features = featuresValue as string;
+      productData.features = featuresValue?.toString();
     }
     
     // Handle product image upload for updates
@@ -217,16 +232,16 @@ export async function PUT(req: Request) {
     }
     
     // Process descriptions for update
-    const descriptions: { title: FormDataEntryValue | null; heading: FormDataEntryValue | null; desc: FormDataEntryValue | null }[] = [];
+    const descriptions: { title: string | null; heading: string | null; desc: string | null }[] = [];
     let index = 0;
     while (formData.has(`descriptions[${index}][title]`) || 
            formData.has(`descriptions[${index}][heading]`) || 
            formData.has(`descriptions[${index}][desc]`)) {
       
       descriptions.push({
-        title: formData.get(`descriptions[${index}][title]`),
-        heading: formData.get(`descriptions[${index}][heading]`),
-        desc: formData.get(`descriptions[${index}][desc]`)
+        title: formData.get(`descriptions[${index}][title]`)?.toString() || null,
+        heading: formData.get(`descriptions[${index}][heading]`)?.toString() || null,
+        desc: formData.get(`descriptions[${index}][desc]`)?.toString() || null
       });
       
       index++;
@@ -237,14 +252,14 @@ export async function PUT(req: Request) {
     }
     
     // Process PDF uploads for update
-    const pdfs: { heading: FormDataEntryValue | null; file?: string | null }[] = [];
+    const pdfs: { heading: string | null; file?: string | null }[] = [];
     index = 0;
     while (formData.has(`pdfs[${index}][heading]`)) {
       const pdfFile = formData.get(`pdfs[${index}][file]`) as File;
-      const pdfHeading = formData.get(`pdfs[${index}][heading]`);
-      const existingFileUrl = formData.get(`pdfs[${index}][fileUrl]`);
+      const pdfHeading = formData.get(`pdfs[${index}][heading]`)?.toString() || null;
+      const existingFileUrl = formData.get(`pdfs[${index}][fileUrl]`)?.toString() || null;
       
-      const pdfEntry: { heading: FormDataEntryValue | null; file?: string | null } = {
+      const pdfEntry: { heading: string | null; file?: string | null } = {
         heading: pdfHeading
       };
       
@@ -272,7 +287,7 @@ export async function PUT(req: Request) {
       } 
       // If no new file but has existing file URL, keep the existing one
       else if (existingFileUrl) {
-        pdfEntry.file = existingFileUrl as string;
+        pdfEntry.file = existingFileUrl;
       }
       
       pdfs.push(pdfEntry);
@@ -293,6 +308,20 @@ export async function PUT(req: Request) {
   } catch (error) {
     console.error("Error updating product:", error);
     return NextResponse.json({ message: "Error updating product", error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    await dbConnect();
+    const products = await Product.find().populate('category').populate({
+      path: 'subCategory',
+      model: 'SubCategory' // Explicitly specify the model name
+    });
+    return NextResponse.json({ products });
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return NextResponse.json({ message: "Error fetching products", error }, { status: 500 });
   }
 }
 
