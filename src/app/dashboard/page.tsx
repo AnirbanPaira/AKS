@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import DashboardContent from './components/DashboardContent';
 import ProductContent from './components/ProductContent';
-import AddCategoryContent from './components/AddCategoryContent';
 import AddSubCategoryContent from './components/AddSubCategoryContent';
 import AddProductContent from './components/AddProductContent';
 import styles from '../DashboardPage.module.css'
