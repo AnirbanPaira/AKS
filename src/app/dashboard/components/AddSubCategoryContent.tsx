@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import styles from '../../AddSubCategoryContent.module.css';
 
 interface Category {
   _id: string;
@@ -159,84 +160,118 @@ const AddSubCategoryContent = () => {
   };
 
   return (
-    <div>
-      <h2>{editingSubCategoryId ? 'Update Sub Category' : 'Add Sub Category'}</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="category">Category:</label>
-          <select
-            id="category"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            required
-          >
-            <option value="">Select Category</option>
-            {categories.map((category) => (
-              <option key={category._id} value={category._id}>
-                {category.categoryName}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="subCategoryName">Sub Category Name:</label>
-          <input
-            type="text"
-            id="subCategoryName"
-            value={subCategoryName}
-            onChange={(e) => setSubCategoryName(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="isActive">Active:</label>
-          <input
-            type="checkbox"
-            id="isActive"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-          />
-        </div>
-        <button type="submit">{editingSubCategoryId ? 'Update Sub Category' : 'Add Sub Category'}</button>
-      </form>
+    <div className={styles.subcategoryContainer}>
+      <h2 className={styles.pageTitle}>
+        {editingSubCategoryId ? 'Update Sub Category' : 'Add Sub Category'}
+      </h2>
+      
+      <div className={styles.formCard}>
+        <form onSubmit={handleSubmit} className={styles.subcategoryForm}>
+          <div className={styles.inputGroup}>
+            <label htmlFor="category" className={styles.inputLabel}>Category:</label>
+            <select
+              id="category"
+              className={styles.select}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              required
+            >
+              <option value="">Select Category</option>
+              {categories.map((category) => (
+                <option key={category._id} value={category._id}>
+                  {category.categoryName}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className={styles.inputGroup}>
+            <label htmlFor="subCategoryName" className={styles.inputLabel}>Sub Category Name:</label>
+            <input
+              type="text"
+              id="subCategoryName"
+              className={styles.input}
+              value={subCategoryName}
+              onChange={(e) => setSubCategoryName(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className={styles.checkboxGroup}>
+            <label htmlFor="isActive" className={styles.inputLabel}>
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className={styles.checkbox}
+              />
+              Active
+            </label>
+          </div>
+          
+          <button type="submit" className={styles.actionButton}>
+            {editingSubCategoryId ? 'Update Sub Category' : 'Add Sub Category'}
+          </button>
+        </form>
+      </div>
 
-      <h3>Sub Categories</h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid #ddd' }}>
-            <th style={{ padding: '8px', textAlign: 'left' }}>Sr.No</th>
-            <th style={{ padding: '8px', textAlign: 'left' }}>Sub Category Name</th>
-            <th style={{ padding: '8px', textAlign: 'left' }}>Category Name</th>
-            <th style={{ padding: '8px', textAlign: 'left' }}>Status</th>
-            <th style={{ padding: '8px', textAlign: 'left' }}>Edit</th>
-            <th style={{ padding: '8px', textAlign: 'left' }}>Remove</th>
-          </tr>
-        </thead>
-        <tbody>
-          {subCategories && subCategories.length > 0 ? (
-            subCategories.map((subCategory, index) => (
-              <tr key={subCategory._id} style={{ borderBottom: '1px solid #ddd' }}>
-                <td style={{ padding: '8px' }}>{index + 1}</td>
-                <td style={{ padding: '8px' }}>{subCategory.subCategoryName}</td>
-                <td style={{ padding: '8px' }}>
-                  {getCategoryNameById(subCategory.categoryId) || 
-                   getCategoryNameById(subCategory.category?._id) || 
-                   'N/A'}
-                </td>
-                <td style={{ padding: '8px' }}>{subCategory.isActive ? 'Active' : 'Inactive'}</td>
-                <td style={{ padding: '8px' }}><button onClick={() => handleEdit(subCategory)}>Edit</button></td>
-                <td style={{ padding: '8px' }}>
-                  <button onClick={() => handleRemove(subCategory._id || '')}>Remove</button>
-                </td>
-              </tr>
-            ))
-          ) : (
+      <h3 className={styles.sectionTitle}>Sub Categories</h3>
+      
+      <div className={styles.tableContainer}>
+        <table className={styles.dataTable}>
+          <thead>
             <tr>
-              <td colSpan={6} style={{ padding: '8px', textAlign: 'center' }}>No sub categories found</td>
+              <th>Sr.No</th>
+              <th>Sub Category Name</th>
+              <th>Category Name</th>
+              <th>Status</th>
+              <th>Edit</th>
+              <th>Remove</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {subCategories && subCategories.length > 0 ? (
+              subCategories.map((subCategory, index) => (
+                <tr key={subCategory._id}>
+                  <td>{index + 1}</td>
+                  <td>{subCategory.subCategoryName}</td>
+                  <td>
+                    {getCategoryNameById(subCategory.categoryId) || 
+                     getCategoryNameById(subCategory.category?._id) || 
+                     'N/A'}
+                  </td>
+                  <td>
+                    <span className={subCategory.isActive ? styles.statusActive : styles.statusInactive}>
+                      {subCategory.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <button 
+                      onClick={() => handleEdit(subCategory)} 
+                      className={styles.editButton}
+                    >
+                      Edit
+                    </button>
+                  </td>
+                  <td>
+                    <button 
+                      onClick={() => handleRemove(subCategory._id || '')} 
+                      className={styles.removeButton}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} className={styles.emptyState}>No sub categories found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
