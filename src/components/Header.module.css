@@ -1,0 +1,51 @@
+/* src/components/Header.module.css */
+.header {
+    background-color: #ffffff; /* White background */
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow for depth */
+}
+
+.logoLink {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333; /* Dark text for logo */
+    text-decoration: none;
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+}
+
+.navLink, .navButton, .adminPanelLink {
+    color: #555; /* Medium dark text for links */
+    text-decoration: none;
+    marginLeft: 1rem;
+    padding: 0.5rem 1rem;
+    borderRadius: 0.25rem;
+    transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition for hover */
+}
+
+.navLink:hover, .navButton:hover, .adminPanelLink:hover {
+    backgroundColor: #f0f0f0; /* Light grey hover background */
+    color: #0070f3; /* Example hover color - blue */
+}
+
+.navButton {
+    background: none;
+    border: 1px solid #ccc; /* Light grey border for button */
+    cursor: pointer;
+}
+
+.navButton:hover {
+    borderColor: #0070f3; /* Example hover border color - blue */
+}
+
+.adminPanelLink {
+    fontSize: 1.2rem;
+    fontWeight: bold;
+    color: #0070f3; /* Blue color for Admin Panel link */
+}
